@@ -40,6 +40,14 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
         _hasResult = false;
       } else if (value == '=') {
         _evaluate();
+      } else if (value == 'x²') {
+        if (_expression.isNotEmpty && !_hasResult) {
+          _expression += '^2';
+        } else if (_hasResult && _result.isNotEmpty && _result != 'Error') {
+          _expression = '$_result^2';
+          _result = '';
+          _hasResult = false;
+        }
       } else {
         if (_hasResult) {
           // Start new expression after result
@@ -59,7 +67,12 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
 
   void _evaluate() {
     try {
-      final exp = Expression.parse(_expression.replaceAll('×', '*').replaceAll('÷', '/'));
+      final exp = Expression.parse(
+        _expression
+            .replaceAll('×', '*')
+            .replaceAll('÷', '/')
+            .replaceAll('%', '%'),
+      );
       final evaluator = const ExpressionEvaluator();
       final context = <String, dynamic>{};
       final evalResult = evaluator.eval(exp, context);
@@ -165,12 +178,13 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
                   children: [
                     _buildButton('0'),
                     _buildButton('.'),
-                    _buildButton('C', color: Colors.red[200], textColor: Colors.red[900]),
+                    _buildButton('%', color: Colors.blueGrey[200], textColor: Colors.blueGrey[900]),
                     _buildButton('+', color: Colors.blueGrey[200], textColor: Colors.blueGrey[900]),
                   ],
                 ),
                 Row(
                   children: [
+                    _buildButton('x²', color: Colors.orange[200], textColor: Colors.orange[900]),
                     Expanded(
                       flex: 2,
                       child: Padding(
@@ -197,4 +211,4 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
       ),
     );
   }
-}
+  }
