@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:expressions/expressions.dart';
 
 void main() {
   runApp(const MyApp());
@@ -41,13 +40,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
       } else if (value == '=') {
         _evaluate();
       } else if (value == 'x²') {
-        if (_expression.isNotEmpty && !_hasResult) {
-          _expression += '^2';
-        } else if (_hasResult && _result.isNotEmpty && _result != 'Error') {
-          _expression = '$_result^2';
-          _result = '';
-          _hasResult = false;
-        }
+        _applySquare();
       } else {
         if (_hasResult) {
           // Start new expression after result
@@ -65,17 +58,30 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
     });
   }
 
+  void _applySquare() {
+    if (_hasResult && _result.isNotEmpty && _result != 'Error') {
+      _expression = '($_result)^2';
+      _result = '';
+      _hasResult = false;
+      return;
+    }
+    if (_expression.isEmpty) return;
+    final regex = RegExp(r'(\d+\.?\d*)$');
+    final match = regex.firstMatch(_expression);
+    if (match != null) {
+      final lastNumber = match.group(0)!;
+      final start = match.start;
+      final end = match.end;
+      _expression = _expression.replaceRange(start, end, '($lastNumber)^2');
+    }
+  }
+
   void _evaluate() {
     try {
-      final exp = Expression.parse(
-        _expression
-            .replaceAll('×', '*')
-            .replaceAll('÷', '/')
-            .replaceAll('%', '%'),
-      );
-      final evaluator = const ExpressionEvaluator();
-      final context = <String, dynamic>{};
-      final evalResult = evaluator.eval(exp, context);
+      String exp = _expression
+          .replaceAll('×', '*')
+          .replaceAll('÷', '/');
+      double evalResult = _evaluateSimple(exp);
       _result = evalResult.toString();
       _expression = '$_expression = $_result';
       _hasResult = true;
@@ -84,6 +90,54 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
       _expression = '';
       _hasResult = true;
     }
+  }
+
+  // Simple evaluator: supports +, -, *, /, ^2 (as (^2)), and decimals.
+  double _evaluateSimple(String exp) {
+    // Handle squares: replace (number)^2 with (number*number)
+    exp = exp.replaceAllMapped(
+      RegExp(r'\((\-?\d+\.?\d*)\)\^2'),
+      (m) {
+        final n = double.parse(m.group(1)!);
+        return (n * n).toString();
+      },
+    );
+    // Remove spaces
+    exp = exp.replaceAll(' ', '');
+
+    // Tokenize
+    final tokens = <String>[];
+    final buffer = StringBuffer();
+    for (int i = 0; i < exp.length; i++) {
+      final c = exp[i];
+      if ('0123456789.'.contains(c)) {
+        buffer.write(c);
+      } else if ('+-*/'.contains(c)) {
+        if (buffer.isNotEmpty) {
+          tokens.add(buffer.toString());
+          buffer.clear();
+        }
+        tokens.add(c);
+      }
+    }
+    if (buffer.isNotEmpty) tokens.add(buffer.toString());
+
+    // Evaluate left to right (no operator precedence)
+    double result = double.parse(tokens[0]);
+    for (int i = 1; i < tokens.length; i += 2) {
+      String op = tokens[i];
+      double num = double.parse(tokens[i + 1]);
+      if (op == '+') {
+        result += num;
+      } else if (op == '-') {
+        result -= num;
+      } else if (op == '*') {
+        result *= num;
+      } else if (op == '/') {
+        result /= num;
+      }
+    }
+    return result;
   }
 
   Widget _buildButton(String text, {Color? color, Color? textColor}) {
@@ -178,13 +232,13 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
                   children: [
                     _buildButton('0'),
                     _buildButton('.'),
-                    _buildButton('%', color: Colors.blueGrey[200], textColor: Colors.blueGrey[900]),
+                    _buildButton('x²', color: Colors.blueGrey[200], textColor: Colors.blueGrey[900]),
                     _buildButton('+', color: Colors.blueGrey[200], textColor: Colors.blueGrey[900]),
                   ],
                 ),
                 Row(
                   children: [
-                    _buildButton('x²', color: Colors.orange[200], textColor: Colors.orange[900]),
+                    _buildButton('C', color: Colors.red, textColor: Colors.white),
                     Expanded(
                       flex: 2,
                       child: Padding(
@@ -211,4 +265,4 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
       ),
     );
   }
-  }
+}
